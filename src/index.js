@@ -1,3 +1,4 @@
+import axios from 'axios';
 import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
@@ -9,14 +10,60 @@ import { Provider } from 'react-redux';
 import logger from 'redux-logger';
 // Import saga middleware
 import createSagaMiddleware from 'redux-saga';
+import {takeEvery, put} from 'redux-saga/effects'
+
+
+
 
 // Create the rootSaga generator function
 function* rootSaga() {
+  yield takeEvery('FETCH_BASKET', getFruitSaga);
+  yield takeEvery('ADD_FRUIT', addFruitSaga);
+  yield takeEvery('DELETE_FRUIT', deleteFruitSaga);
+  
+}
 
+
+
+//Saga to get elements from the server AJAX (axios)
+function* getFruitSaga(){
+  //us try/catch for errors - replaces promise .then & .catch
+  try {
+    const response = yield axios.get('/fruit');
+    // in Sagas, replace `dispatch` with `put`
+    yield put({ type: 'SET_BASKET', payload: response.data });
+  } catch (error) { 
+      console.log('error with element get request', error);
+  }
+}
+
+
+// Saga to add new fruit
+function* addFruitSaga(action){
+  try{
+    yield axios.post( '/fruit', action.payload );
+    yield put({type: 'FETCH_BASKET'});
+  } catch (error) {
+    console.log('error with element add request', error);
+  }
+}
+
+//Saga to get delete fruit from the server
+function* deleteFruitSaga(action){
+  //us try/catch for errors - replaces promise .then & .catch
+  try {
+    const response = yield axios.delete(`/fruit/${action.payload}`);
+    // in Sagas, replace `dispatch` with `put`
+    yield put({ type: 'FETCH_BASKET', payload: response.data });
+  } catch (error) { 
+      console.log('error with element get request', error);
+  }
 }
 
 // Create sagaMiddleware
 const sagaMiddleware = createSagaMiddleware();
+
+
 
 // This function (our reducer) will be called when an 
 // action is dipatched. state = ['Apple'] sets the default 
@@ -30,6 +77,8 @@ const basketReducer = (state = [], action) => {
     }
 }
 
+
+
 // Create one store that all components can use
 const storeInstance = createStore(
     combineReducers({
@@ -39,8 +88,12 @@ const storeInstance = createStore(
     applyMiddleware(sagaMiddleware, logger),
 );
 
+
+
 // Pass rootSaga into our sagaMiddleware
 sagaMiddleware.run(rootSaga);
+
+
 
 ReactDOM.render(<Provider store={storeInstance}><App /></Provider>, 
     document.getElementById('root'));
